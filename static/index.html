@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>局域网文件共享</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+    <!-- ===== Header ===== -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="logo">📁 局域网文件共享</h1>
+            <span class="server-info" id="serverInfo">连接中...</span>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-sm" onclick="showHelp()" title="帮助">❓</button>
+            <button class="btn btn-sm" onclick="toggleTheme()" title="切换主题">🌓</button>
+            <button class="btn btn-sm" onclick="showAbout()" title="关于">ℹ️</button>
+        </div>
+    </header>
+
+    <!-- ===== Main Layout ===== -->
+    <div class="layout">
+        <!-- ===== Sidebar ===== -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>📂 当前目录</h3>
+                <div class="sidebar-path" id="currentPath">/</div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="sidebar-section upload-section">
+                <h3>📤 上传文件</h3>
+                <div class="upload-zone" id="dropZone">
+                    <div class="upload-icon">☁️</div>
+                    <p>拖拽文件到此处上传</p>
+                    <p class="upload-hint">或点击下方按钮选择</p>
+                    <input type="file" id="fileInput" multiple style="display:none">
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">选择文件</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('folderInput').click()">选择文件夹</button>
+                    <input type="file" id="folderInput" multiple webkitdirectory style="display:none">
+                </div>
+                <div class="upload-progress" id="uploadProgress" style="display:none">
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+            </div>
+
+            <!-- Share Links -->
+            <div class="sidebar-section">
+                <h3>🔗 分享链接</h3>
+                <div id="shareLinks">
+                    <p class="empty-hint">暂无分享链接</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===== Main Content ===== -->
+        <main class="content">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="breadcrumb" id="breadcrumb">
+                    <a href="#" data-path="." onclick="event.preventDefault(); loadFileList('.')">🏠 根目录</a>
+                </div>
+                <div class="toolbar-actions">
+                    <button class="btn btn-sm" onclick="newFolder()" title="新建文件夹" id="newFolderBtn">📁+ 新建</button>
+                    <button class="btn btn-sm" onclick="refreshList()" title="刷新">🔄 刷新</button>
+                    <button class="btn btn-sm" onclick="document.getElementById('fileInput').click()" title="上传文件" id="uploadBtn">⬆️ 上传</button>
+                    <div class="view-toggle">
+                        <button class="btn btn-sm active" data-view="grid" onclick="setView('grid')" title="网格视图">▦</button>
+                        <button class="btn btn-sm" data-view="list" onclick="setView('list')" title="列表视图">☰</button>
+                    </div>
+                    <input type="text" class="search-box" id="searchBox" placeholder="搜索文件..." oninput="filterFiles()">
+                </div>
+            </div>
+
+            <!-- Selection Bar -->
+            <div class="selection-bar" id="selectionBar">
+                <span>已选择 <span class="selection-count" id="selectionCount">0</span> 个项目</span>
+                <div class="selection-actions">
+                    <button class="btn btn-sm btn-primary" onclick="batchDownload()">⬇️ 批量下载</button>
+                    <button class="btn btn-sm btn-danger" onclick="batchDelete()">🗑️ 批量删除</button>
+                    <button class="btn btn-sm" onclick="clearSelection()">✕ 取消选择</button>
+                </div>
+            </div>
+
+            <!-- File List -->
+            <div class="file-container" id="fileContainer">
+                <div class="skeleton-grid">
+                    <div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item"></div>
+                    <div class="skeleton-item"></div><div class="skeleton-item"></div><div class="skeleton-item"></div>
+                    <div class="skeleton-item"></div><div class="skeleton-item"></div>
+                </div>
+            </div>
+            <div class="file-count" id="fileCount"></div>
+        </main>
+    </div>
+
+    <!-- ===== Preview Modal (图片/视频/文本等) ===== -->
+    <div class="modal" id="previewModal">
+        <div class="modal-backdrop" onclick="closePreview()"></div>
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="previewTitle">预览</h3>
+                <div class="modal-actions">
+                    <button class="btn btn-sm" id="prevBtn" onclick="prevImage()" title="上一张">◀</button>
+                    <button class="btn btn-sm" id="nextBtn" onclick="nextImage()" title="下一张">▶</button>
+                    <button class="btn btn-sm" onclick="downloadCurrent()" title="下载">⬇️</button>
+                    <button class="btn btn-sm" onclick="shareCurrent()" title="分享">🔗</button>
+                    <button class="btn btn-sm" onclick="closePreview()">✕ 关闭</button>
+                </div>
+            </div>
+            <div class="modal-body" id="previewBody">
+                <!-- Preview content rendered by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Share Dialog ===== -->
+    <div class="modal" id="shareModal">
+        <div class="modal-backdrop" onclick="closeShareDialog()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔗 创建分享链接</h3>
+                <button class="btn btn-sm" onclick="closeShareDialog()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>文件/文件夹路径</label>
+                    <input type="text" id="sharePath" readonly>
+                </div>
+                <div class="form-group">
+                    <label>访问密码（可选）</label>
+                    <input type="text" id="sharePassword" placeholder="留空则不设密码">
+                </div>
+                <div class="form-group">
+                    <label>过期时间</label>
+                    <select id="shareExpiration">
+                        <option value="">永不过期</option>
+                        <option value="1h">1 小时</option>
+                        <option value="6h">6 小时</option>
+                        <option value="24h">24 小时</option>
+                        <option value="7d">7 天</option>
+                        <option value="30d">30 天</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="generateShareLink()">生成链接</button>
+                <div id="shareResult" style="display:none;margin-top:12px;">
+                    <label>分享链接：</label>
+                    <div class="share-url">
+                        <input type="text" id="shareUrl" readonly onclick="this.select()">
+                        <button class="btn btn-sm" onclick="copyShareUrl()">📋 复制</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== New Folder Dialog ===== -->
+    <div class="modal" id="folderModal">
+        <div class="modal-backdrop" onclick="closeFolderDialog()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📁 新建文件夹</h3>
+                <button class="btn btn-sm" onclick="closeFolderDialog()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>文件夹名称</label>
+                    <input type="text" id="folderName" placeholder="输入文件夹名称" onkeydown="if(event.key==='Enter') confirmNewFolder()">
+                </div>
+                <button class="btn btn-primary" onclick="confirmNewFolder()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Help Modal ===== -->
+    <div class="modal" id="helpModal">
+        <div class="modal-backdrop" onclick="closeHelp()"></div>
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>❓ 帮助与使用说明</h3>
+                <button class="btn btn-sm" onclick="closeHelp()">✕</button>
+            </div>
+            <div class="modal-body help-body">
+                <div class="help-section">
+                    <h4>📖 快速入门</h4>
+                    <p>打开浏览器访问本服务地址，即可在同个局域网内任意设备间共享文件。</p>
+                    <ul>
+                        <li><strong>本机访问：</strong><code id="helpLocalUrl">http://localhost:8080</code></li>
+                        <li><strong>局域网访问：</strong><code id="helpLanUrl">http://192.168.x.x:8080</code></li>
+                        <li>手机、平板、其他电脑均可通过浏览器直接访问，无需安装任何软件。</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>📤 上传文件</h4>
+                    <ul>
+                        <li><strong>拖拽上传：</strong>将文件或文件夹从电脑拖入左侧上传区域</li>
+                        <li><strong>选择文件：</strong>点击"选择文件"按钮，可多选</li>
+                        <li><strong>上传文件夹：</strong>点击"选择文件夹"按钮，保留目录结构</li>
+                        <li>上传时显示进度条，完成后自动刷新文件列表</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>📂 管理文件</h4>
+                    <ul>
+                        <li><strong>浏览：</strong>双击文件夹进入，双击文件预览</li>
+                        <li><strong>下载：</strong>列表视图下点击 ⬇️ 按钮，右键菜单也可下载；文件夹会自动打包为 ZIP</li>
+                        <li><strong>预览：</strong>支持图片、视频、音频、PDF、文本/代码、ZIP 压缩包内容</li>
+                        <li><strong>删除：</strong>右键菜单或列表中的 🗑️ 按钮</li>
+                        <li><strong>新建文件夹：</strong>点击工具栏 📁+ 新建</li>
+                        <li><strong>搜索：</strong>在搜索框输入文件名实时过滤</li>
+                        <li><strong>视图切换：</strong>网格视图 ▦  /  列表视图 ☰</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>🖼️ 图片画廊</h4>
+                    <ul>
+                        <li>打开一张图片后，可使用 ◀ ▶ 按钮切换当前目录中的上一张/下一张图片</li>
+                        <li>也支持键盘 ← → 方向键切换</li>
+                        <li>支持的格式：JPG、PNG、GIF、SVG、WebP、BMP</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>📦 压缩包预览</h4>
+                    <ul>
+                        <li>双击 <code>.zip</code> 文件可查看其内部文件清单</li>
+                        <li>支持树形目录结构展示</li>
+                        <li>RAR / 7z / TAR 格式暂不支持在线浏览，请下载后使用本机软件解压</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>🔗 分享链接</h4>
+                    <ul>
+                        <li>右键文件 →「🔗 Share」或在预览窗口点击 🔗 按钮</li>
+                        <li>可选设置<strong>访问密码</strong>和<strong>过期时间</strong></li>
+                        <li>生成后会在左侧边栏列出所有活跃分享，可随时删除</li>
+                        <li>分享链接格式：<code>http://IP:端口/share/&lt;token&gt;</code></li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>⌨️ 快捷键</h4>
+                    <ul>
+                        <li><kbd>←</kbd> <kbd>→</kbd> — 图片预览时切换上一张/下一张</li>
+                        <li><kbd>Esc</kbd> — 关闭当前弹窗</li>
+                        <li><kbd>Ctrl</kbd>+<kbd>R</kbd> — 刷新文件列表</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>🔒 安全说明</h4>
+                    <ul>
+                        <li>默认情况下服务<strong>没有密码保护</strong>，同局域网内所有设备均可访问</li>
+                        <li>如需保护，启动时添加 <code>--user admin --pass 你的密码</code></li>
+                        <li>分享链接的密码经过哈希处理，传输采用 Basic Auth</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h4>💡 提示</h4>
+                    <ul>
+                        <li>将所有文件放在<strong>共享目录</strong>（默认为 <code>./shared/</code>）即可被浏览</li>
+                        <li>可指定其他目录：<code>--dir D:\共享文件夹</code></li>
+                        <li>最大上传大小默认为 500MB，可通过 <code>--max-upload 1000</code> 修改</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Toast Notifications ===== -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-i18n="html_lang">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俄罗斯方块</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #1a1a2e;
+    color: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    user-select: none;
+  }
+  
+  #game-container {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    letter-spacing: 6px;
+    margin-bottom: 20px;
+    color: #e94560;
+    text-shadow: 0 0 20px rgba(233,69,96,0.3);
+  }
+  
+  #game-area {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  
+  #board-wrapper {
+    background: #0f3460;
+    border-radius: 8px;
+    padding: 4px;
+  }
+  
+  #board-canvas {
+    display: block;
+    border-radius: 4px;
+    background: #0a0a23;
+  }
+  
+  #side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 150px;
+  }
+  
+  #next-piece {
+    background: #1a1a3e;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  
+  #next-piece h3 {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+  }
+  
+  #preview-canvas {
+    display: block;
+    margin: 0 auto;
+    background: #0a0a23;
+    border-radius: 4px;
+  }
+  
+  #stats {
+    background: #1a1a3e;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .stat-label {
+    font-size: 13px;
+    color: #888;
+    letter-spacing: 1px;
+  }
+  
+  .stat-value {
+    font-size: 22px;
+    font-weight: bold;
+    color: #e94560;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  #restart-btn {
+    background: #e94560;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 0;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+  }
+  
+  #restart-btn:hover {
+    background: #d63851;
+  }
+  
+  #controls {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 12px;
+    color: #555;
+    letter-spacing: 1px;
+    line-height: 1.8;
+  }
+  
+  #controls kbd {
+    background: #0f3460;
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: #aaa;
+    font-size: 11px;
+  }
+  
+  #pause-overlay, #gameover-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.75);
+    border-radius: 4px;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  #pause-overlay.show, #gameover-overlay.show {
+    display: flex;
+  }
+  
+  #board-container {
+    position: relative;
+  }
+  
+  .overlay-text {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 4px;
+  }
+  
+  .overlay-sub {
+    font-size: 14px;
+    color: #aaa;
+    margin-top: 8px;
+  }
+  
+  #lang-select {
+    background: #0f3460;
+    color: #fff;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+  #lang-select:focus {
+    border-color: #e94560;
+  }
+
+  @media (max-width: 600px) {
+    #game-container { padding: 16px; }
+    #game-area { flex-direction: column; align-items: center; }
+    #side-panel { flex-direction: row; flex-wrap: wrap; justify-content: center; min-width: auto; }
+    #next-piece { order: 1; }
+    #stats { order: 2; }
+    #restart-btn { order: 3; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1 data-i18n="title">俄罗斯方块</h1>
+  <div id="game-area">
+    <div id="board-container">
+      <canvas id="board-canvas" width="300" height="600"></canvas>
+      <div id="pause-overlay">
+        <div class="overlay-text" style="color:#e94560;" data-i18n="paused">已暂停</div>
+        <div class="overlay-sub" data-i18n="pause_hint">按 <kbd>P</kbd> 继续</div>
+      </div>
+      <div id="gameover-overlay">
+        <div class="overlay-text" style="color:#e94560;" data-i18n="gameover">游戏结束</div>
+        <div class="overlay-sub" data-i18n="gameover_hint">按 <kbd>Enter</kbd> 重新开始</div>
+      </div>
+    </div>
+    <div id="side-panel">
+      <div id="next-piece">
+        <h3 data-i18n="next">下一个</h3>
+        <canvas id="preview-canvas" width="120" height="120"></canvas>
+      </div>
+      <div id="stats">
+        <div class="stat-item">
+          <span class="stat-label" data-i18n="score">分数</span>
+          <span class="stat-value" id="score">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label" data-i18n="level">等级</span>
+          <span class="stat-value" id="level">1</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label" data-i18n="lines">行数</span>
+          <span class="stat-value" id="lines">0</span>
+        </div>
+        <div class="stat-item" style="border-top:1px solid #333;padding-top:8px;margin-top:4px;">
+          <span class="stat-label" data-i18n="lang_label">语言</span>
+          <select id="lang-select">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+      </div>
+      <button id="restart-btn" data-i18n="restart">重新开始</button>
+    </div>
+  </div>
+  <div id="controls">
+    <kbd>←</kbd> <kbd>→</kbd> <span data-i18n="controls_move">移动</span> &nbsp;|&nbsp;
+    <kbd>↑</kbd> <span data-i18n="controls_rotate">旋转</span> &nbsp;|&nbsp;
+    <kbd>↓</kbd> <span data-i18n="controls_softdrop">软降</span> &nbsp;|&nbsp;
+    <kbd>空格</kbd> <span data-i18n="controls_harddrop">硬降</span> &nbsp;|&nbsp;
+    <kbd>P</kbd> <span data-i18n="controls_pause">暂停</span>
+  </div>
+</div>
+
+<script>
+const COLS = 10;
+const ROWS = 20;
+const BLOCK_SIZE = 30;
+const PREVIEW_SIZE = 25;
+
+const SHAPES = {
+  I: [
+    [0,0,0,0],
+    [1,1,1,1],
+    [0,0,0,0],
+    [0,0,0,0]
+  ],
+  O: [
+    [1,1],
+    [1,1]
+  ],
+  T: [
+    [0,1,0],
+    [1,1,1],
+    [0,0,0]
+  ],
+  S: [
+    [0,1,1],
+    [1,1,0],
+    [0,0,0]
+  ],
+  Z: [
+    [1,1,0],
+    [0,1,1],
+    [0,0,0]
+  ],
+  J: [
+    [1,0,0],
+    [1,1,1],
+    [0,0,0]
+  ],
+  L: [
+    [0,0,1],
+    [1,1,1],
+    [0,0,0]
+  ]
+};
+
+const COLORS = {
+  I: '#31c7c7',
+  O: '#e5e53b',
+  T: '#9b30e0',
+  S: '#3ae03a',
+  Z: '#e03030',
+  J: '#3050e0',
+  L: '#e0a030'
+};
+
+const PIECE_NAMES = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+
+const SCORE_TABLE = [0, 100, 300, 500, 800];
+
+const LANGUAGES = {
+  zh: {
+    title: '俄罗斯方块', next: '下一个',
+    score: '分数', level: '等级', lines: '行数',
+    restart: '重新开始', lang_label: '语言',
+    paused: '已暂停',
+    pause_hint: '按 <kbd>P</kbd> 继续',
+    gameover: '游戏结束',
+    gameover_hint: '按 <kbd>Enter</kbd> 重新开始',
+    controls_move: '移动', controls_rotate: '旋转',
+    controls_softdrop: '软降', controls_harddrop: '硬降',
+    controls_pause: '暂停'
+  },
+  en: {
+    title: 'Tetris', next: 'Next',
+    score: 'Score', level: 'Level', lines: 'Lines',
+    restart: 'Restart', lang_label: 'Language',
+    paused: 'Paused',
+    pause_hint: 'Press <kbd>P</kbd> to continue',
+    gameover: 'Game Over',
+    gameover_hint: 'Press <kbd>Enter</kbd> to restart',
+    controls_move: 'Move', controls_rotate: 'Rotate',
+    controls_softdrop: 'Soft Drop', controls_harddrop: 'Hard Drop',
+    controls_pause: 'Pause'
+  },
+  ja: {
+    title: 'テトリス', next: '次',
+    score: 'スコア', level: 'レベル', lines: 'ライン',
+    restart: '再開', lang_label: '言語',
+    paused: '一時停止',
+    pause_hint: '<kbd>P</kbd>キーで再開',
+    gameover: 'ゲームオーバー',
+    gameover_hint: '<kbd>Enter</kbd>キーで再開',
+    controls_move: '移動', controls_rotate: '回転',
+    controls_softdrop: 'ソフトドロップ', controls_harddrop: 'ハードドロップ',
+    controls_pause: '一時停止'
+  },
+  ko: {
+    title: '테트리스', next: '다음',
+    score: '점수', level: '레벨', lines: '라인',
+    restart: '다시 시작', lang_label: '언어',
+    paused: '일시 정지',
+    pause_hint: '<kbd>P</kbd>를 누르면 계속',
+    gameover: '게임 오버',
+    gameover_hint: '<kbd>Enter</kbd>를 누르면 다시 시작',
+    controls_move: '이동', controls_rotate: '회전',
+    controls_softdrop: '소프트 드롭', controls_harddrop: '하드 드롭',
+    controls_pause: '일시 정지'
+  }
+};
+
+function rotateMatrix(matrix) {
+  const n = matrix.length;
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    result[i] = [];
+    for (let j = 0; j < n; j++) {
+      result[i][j] = matrix[n - 1 - j][i];
+    }
+  }
+  return result;
+}
+
+function createBoard() {
+  return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+}
+
+const WALL_KICKS = [
+  [0, 0], [-1, 0], [1, 0], [0, -1], [-1, -1], [1, -1], [-2, 0], [2, 0]
+];
+
+class Tetris {
+  constructor() {
+    this.canvas = document.getElementById('board-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.previewCanvas = document.getElementById('preview-canvas');
+    this.previewCtx = this.previewCanvas.getContext('2d');
+    
+    this.scoreEl = document.getElementById('score');
+    this.levelEl = document.getElementById('level');
+    this.linesEl = document.getElementById('lines');
+    
+    this.pauseOverlay = document.getElementById('pause-overlay');
+    this.gameoverOverlay = document.getElementById('gameover-overlay');
+    
+    this.lang = localStorage.getItem('tetris-lang') || 'zh';
+    this.reset();
+    this.setupControls();
+    this.applyLanguage();
+    this.loop();
+  }
+  
+  reset() {
+    this.board = createBoard();
+    this.score = 0;
+    this.level = 1;
+    this.lines = 0;
+    this.gameOver = false;
+    this.paused = false;
+    this.dropCounter = 0;
+    this.dropInterval = 800;
+    this.lastTime = 0;
+    
+    this.nextType = this.randomPiece();
+    this.spawnPiece();
+    
+    this.secretBuffer = '';
+    this.rainbowActive = false;
+    this.rainbowTimer = 0;
+    this.particles = [];
+    
+    this.updateUI();
+    this.pauseOverlay.classList.remove('show');
+    this.gameoverOverlay.classList.remove('show');
+  }
+  
+  randomPiece() {
+    return PIECE_NAMES[Math.floor(Math.random() * PIECE_NAMES.length)];
+  }
+  
+  spawnPiece() {
+    this.currentType = this.nextType;
+    this.currentShape = SHAPES[this.currentType].map(row => [...row]);
+    this.currentX = Math.floor((COLS - this.currentShape[0].length) / 2);
+    this.currentY = 0;
+    
+    this.nextType = this.randomPiece();
+    
+    if (this.collides(this.currentShape, this.currentX, this.currentY)) {
+      this.gameOver = true;
+      this.gameoverOverlay.classList.add('show');
+    }
+  }
+  
+  collides(shape, offsetX, offsetY) {
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c]) {
+          const x = offsetX + c;
+          const y = offsetY + r;
+          if (x < 0 || x >= COLS || y >= ROWS || y < 0) return true;
+          if (y >= 0 && this.board[y][x]) return true;
+        }
+      }
+    }
+    return false;
+  }
+  
+  lockPiece() {
+    for (let r = 0; r < this.currentShape.length; r++) {
+      for (let c = 0; c < this.currentShape[r].length; c++) {
+        if (this.currentShape[r][c]) {
+          const x = this.currentX + c;
+          const y = this.currentY + r;
+          if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+            this.board[y][x] = this.currentType;
+          }
+        }
+      }
+    }
+    this.clearLines();
+    this.spawnPiece();
+    this.updateUI();
+  }
+  
+  clearLines() {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (this.board[r].every(cell => cell !== 0)) {
+        this.board.splice(r, 1);
+        this.board.unshift(Array(COLS).fill(0));
+        cleared++;
+        r++;
+      }
+    }
+    
+    if (cleared > 0) {
+      this.lines += cleared;
+      this.score += (SCORE_TABLE[cleared] || 800) * this.level;
+      this.level = Math.floor(this.lines / 10) + 1;
+      this.dropInterval = Math.max(50, 800 - (this.level - 1) * 75);
+      this.updateUI();
+    }
+  }
+  
+  moveLeft() {
+    if (!this.collides(this.currentShape, this.currentX - 1, this.currentY)) {
+      this.currentX--;
+      return true;
+    }
+    return false;
+  }
+  
+  moveRight() {
+    if (!this.collides(this.currentShape, this.currentX + 1, this.currentY)) {
+      this.currentX++;
+      return true;
+    }
+    return false;
+  }
+  
+  moveDown() {
+    if (!this.collides(this.currentShape, this.currentX, this.currentY + 1)) {
+      this.currentY++;
+      return true;
+    }
+    this.lockPiece();
+    return false;
+  }
+  
+  rotate() {
+    if (this.currentType === 'O') return;
+    const rotated = rotateMatrix(this.currentShape);
+    for (const [dx, dy] of WALL_KICKS) {
+      if (!this.collides(rotated, this.currentX + dx, this.currentY + dy)) {
+        this.currentShape = rotated;
+        this.currentX += dx;
+        this.currentY += dy;
+        return;
+      }
+    }
+  }
+  
+  hardDrop() {
+    while (!this.collides(this.currentShape, this.currentX, this.currentY + 1)) {
+      this.currentY++;
+      this.score += 2;
+    }
+    this.lockPiece();
+    this.dropCounter = 0;
+    this.updateUI();
+  }
+  
+  getGhostY() {
+    let y = this.currentY;
+    while (!this.collides(this.currentShape, this.currentX, y + 1)) {
+      y++;
+    }
+    return y;
+  }
+  
+  drawBlock(ctx, x, y, size, color, alpha, rainbowIdx) {
+    if (rainbowIdx !== undefined) {
+      color = this.rainbowColor(rainbowIdx, this.rainbowTimer);
+    }
+    ctx.globalAlpha = alpha || 1;
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, size, size);
+    ctx.globalAlpha = 1;
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(x, y, size, 2);
+    ctx.fillRect(x, y, 2, size);
+    
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x, y + size - 2, size, 2);
+    ctx.fillRect(x + size - 2, y, 2, size);
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(x + 3, y + 3, size - 6, size - 6);
+  }
+  
+  draw() {
+    const ctx = this.ctx;
+    const w = COLS * BLOCK_SIZE;
+    const h = ROWS * BLOCK_SIZE;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    ctx.fillStyle = '#0a0a23';
+    ctx.fillRect(0, 0, w, h);
+    
+    let blockIdx = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (this.board[r][c]) {
+          if (this.rainbowActive) {
+            this.drawBlock(ctx, c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, COLORS[this.board[r][c]], 1, blockIdx++);
+          } else {
+            this.drawBlock(ctx, c * BLOCK_SIZE, r * BLOCK_SIZE, BLOCK_SIZE, COLORS[this.board[r][c]]);
+          }
+        }
+      }
+    }
+    
+    if (!this.gameOver) {
+      const ghostY = this.getGhostY();
+      if (ghostY !== this.currentY) {
+        for (let r = 0; r < this.currentShape.length; r++) {
+          for (let c = 0; c < this.currentShape[r].length; c++) {
+            if (this.currentShape[r][c]) {
+              const x = (this.currentX + c) * BLOCK_SIZE;
+              const y = (ghostY + r) * BLOCK_SIZE;
+              this.drawBlock(ctx, x, y, BLOCK_SIZE, COLORS[this.currentType], 0.2);
+            }
+          }
+        }
+      }
+      
+      let currentIdx = blockIdx;
+      for (let r = 0; r < this.currentShape.length; r++) {
+        for (let c = 0; c < this.currentShape[r].length; c++) {
+          if (this.currentShape[r][c]) {
+            const x = (this.currentX + c) * BLOCK_SIZE;
+            const y = (this.currentY + r) * BLOCK_SIZE;
+            if (this.rainbowActive) {
+              this.drawBlock(ctx, x, y, BLOCK_SIZE, COLORS[this.currentType], 1, currentIdx++);
+            } else {
+              this.drawBlock(ctx, x, y, BLOCK_SIZE, COLORS[this.currentType]);
+            }
+          }
+        }
+      }
+    }
+    
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 0.5;
+    for (let r = 0; r <= ROWS; r++) {
+      ctx.beginPath();
+      ctx.moveTo(0, r * BLOCK_SIZE);
+      ctx.lineTo(w, r * BLOCK_SIZE);
+      ctx.stroke();
+    }
+    for (let c = 0; c <= COLS; c++) {
+      ctx.beginPath();
+      ctx.moveTo(c * BLOCK_SIZE, 0);
+      ctx.lineTo(c * BLOCK_SIZE, h);
+      ctx.stroke();
+    }
+    
+    if (this.rainbowActive) {
+      this.drawParticles();
+    }
+    
+    this.drawPreview();
+  }
+  
+  drawPreview() {
+    const ctx = this.previewCtx;
+    const size = PREVIEW_SIZE;
+    ctx.clearRect(0, 0, 120, 120);
+    ctx.fillStyle = '#0a0a23';
+    ctx.fillRect(0, 0, 120, 120);
+    
+    const shape = SHAPES[this.nextType];
+    const rows = shape.length;
+    const cols = shape[0].length;
+    const offsetX = (120 - cols * size) / 2;
+    const offsetY = (120 - rows * size) / 2;
+    
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (shape[r][c]) {
+          this.drawBlock(ctx, offsetX + c * size, offsetY + r * size, size, COLORS[this.nextType]);
+        }
+      }
+    }
+  }
+  
+  updateUI() {
+    this.scoreEl.textContent = this.score;
+    this.levelEl.textContent = this.level;
+    this.linesEl.textContent = this.lines;
+  }
+  
+  applyLanguage() {
+    const lang = LANGUAGES[this.lang] || LANGUAGES.zh;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (key === 'html_lang') return;
+      const val = lang[key];
+      if (val === undefined) return;
+      if (val.includes('<')) {
+        el.innerHTML = val;
+      } else {
+        el.textContent = val;
+      }
+    });
+    document.documentElement.lang = this.lang === 'zh' ? 'zh-CN' : this.lang;
+    document.getElementById('lang-select').value = this.lang;
+  }
+  
+  togglePause() {
+    if (this.gameOver) return;
+    this.paused = !this.paused;
+    this.pauseOverlay.classList.toggle('show', this.paused);
+  }
+  
+  triggerEasterEgg() {
+    this.rainbowActive = true;
+    this.rainbowTimer = 300;
+    this.spawnParticles();
+  }
+
+  spawnParticles() {
+    this.particles = [];
+    for (let i = 0; i < 60; i++) {
+      this.particles.push({
+        x: Math.random() * COLS * BLOCK_SIZE,
+        y: -10,
+        vx: (Math.random() - 0.5) * 4,
+        vy: Math.random() * 3 + 2,
+        life: Math.random() * 80 + 60,
+        color: `hsl(${Math.random() * 360}, 90%, 60%)`,
+        size: Math.random() * 4 + 2
+      });
+    }
+  }
+
+  updateParticles() {
+    for (const p of this.particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.05;
+      p.life--;
+    }
+    this.particles = this.particles.filter(p => p.life > 0);
+  }
+
+  drawParticles() {
+    const ctx = this.ctx;
+    for (const p of this.particles) {
+      ctx.globalAlpha = Math.min(1, p.life / 20);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  rainbowColor(index, time) {
+    return `hsl(${(index * 37 + time * 3) % 360}, 85%, 55%)`;
+  }
+
+  setupControls() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        this.togglePause();
+        return;
+      }
+      
+      if (this.gameOver) {
+        if (e.key === 'Enter') {
+          this.reset();
+        }
+        return;
+      }
+      
+      if (this.paused) return;
+
+      if (e.key.length === 1) {
+        this.secretBuffer = (this.secretBuffer + e.key).slice(-6);
+        if (this.secretBuffer === 'secret') {
+          this.triggerEasterEgg();
+          this.secretBuffer = '';
+        }
+      }
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          this.moveLeft();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          this.moveRight();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (this.moveDown()) {
+            this.score += 1;
+            this.updateUI();
+          }
+          this.dropCounter = 0;
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          this.rotate();
+          break;
+        case ' ':
+          e.preventDefault();
+          this.hardDrop();
+          break;
+      }
+    });
+    
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      this.reset();
+    });
+    
+    document.getElementById('lang-select').addEventListener('change', (e) => {
+      this.lang = e.target.value;
+      localStorage.setItem('tetris-lang', this.lang);
+      this.applyLanguage();
+    });
+  }
+  
+  loop(time = 0) {
+    const delta = time - this.lastTime;
+    this.lastTime = time;
+    
+    if (!this.paused && !this.gameOver) {
+      this.dropCounter += delta;
+      if (this.dropCounter > this.dropInterval) {
+        this.moveDown();
+        this.dropCounter = 0;
+      }
+    }
+    
+    if (this.rainbowActive) {
+      this.rainbowTimer--;
+      this.updateParticles();
+      if (this.rainbowTimer <= 0) {
+        this.rainbowActive = false;
+        this.particles = [];
+      }
+    }
+    
+    this.draw();
+    requestAnimationFrame((t) => this.loop(t));
+  }
+}
+
+new Tetris();
+</script>
+</body>
+</html>
